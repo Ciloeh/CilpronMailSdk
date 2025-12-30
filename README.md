@@ -1,6 +1,3 @@
-Ah, I see what confused you — in the README I gave you, the **Visual Studio snippet** and other commands were outside the fenced code block. Let’s fix that so everything is properly contained in code fences. Here’s a clean, copy‑ready `README.md` where all commands are inside their own boxes:
-
-```markdown
 # CilpronMailSdk
 
 CilpronMailSdk is the official C# client library for **CILPRON Limited’s Email API**.  
@@ -58,8 +55,7 @@ Console.WriteLine($"Status: {response.StatusCode}");
 ```
 
 ## 📖 Documentation
-- [API Reference](docs/api.md)  
-- [Examples](examples/)  
+- https://www.cilpron.com/documentation  
 - [Release Notes](CHANGELOG.md)
 
 ## 🧪 Testing
