@@ -5,23 +5,32 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<PackageId>Cilpron.MailSdk</PackageId>
-		<Version>1.0.0</Version>
+		<Version>2.0.0</Version>
 		<Authors>Jude Iloelunachi - CILPRON LTD</Authors>
-		<Description>An SDK for sending emails via Cilpron Mail API, with resilient HTTP handling and intuitive helper methods.</Description>
+		<Description>An SDK for sending emails through the Cilpron Mail API (Swift Grid), with sandbox mode, scheduled sending, resilient HTTP handling and intuitive helper methods.</Description>
+		<PackageReleaseNotes>2.0.0: Sends through Swift Grid (swiftgrid.cilbox.com). Adds SandboxMode, SendAt and CancellationToken support. Attachments are no longer supported. Retries only on network errors, 429 and 503.</PackageReleaseNotes>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/your-repo/Cilpron.MailSdk</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/your-repo/Cilpron.MailSdk.git</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageProjectUrl>https://github.com/Ciloeh/CilpronMailSdk</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Ciloeh/CilpronMailSdk.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<PackageTags>email; sdk; cilpron</PackageTags>
+		<PackageTags>email; sdk; cilpron; swiftgrid</PackageTags>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
 		<PackageReference Include="Polly" Version="8.4.1" />
-		<PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.6" />
 	</ItemGroup>
 
