@@ -140,6 +140,11 @@ namespace Cilpron.MailSdk.Models
         [ForeignKey("TrackingSettingsId")]
         [InverseProperty("MailRequests")]
         public virtual TrackingSetting? TrackingSettings { get; set; }
+         /// <summary>
+        /// When true, the API validates and accepts the request without delivering the email.
+        /// </summary>
+        [NotMapped]
+        public bool SandboxMode { get; set; }
     }
 
 }
