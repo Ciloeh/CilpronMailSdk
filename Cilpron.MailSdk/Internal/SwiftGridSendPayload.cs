@@ -41,18 +41,27 @@ namespace Cilpron.MailSdk.Internal
             var cc = Distinct(request.Personalizations.Select(p => p.CcEmail));
             var bcc = Distinct(request.Personalizations.Select(p => p.BccEmail));
 
+            DateTimeOffset? sendAt = null;
+            if (request.SendAt is long ts && ts > 0)
+            {
+                // Unix timestamp: seconds, or milliseconds if the value is that large.
+                sendAt = ts > 99_999_999_999L
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(ts)
+                    : DateTimeOffset.FromUnixTimeSeconds(ts);
+            }
+
             return new SwiftGridSendPayload
             {
-                From = request.FromEmail,
+                From = request.FromEmail ?? string.Empty,
                 FromName = request.FromName,
-                Subject = request.Subject,
+                Subject = request.Subject ?? string.Empty,
                 HtmlBody = request.HtmlContent,
                 TextBody = request.PlainTextContent,
                 To = Distinct(request.Personalizations.Select(p => p.ToEmail)),
                 Cc = cc.Count > 0 ? cc : null,
                 Bcc = bcc.Count > 0 ? bcc : null,
                 SandboxMode = request.SandboxMode,
-                SendAt = request.SendAt?.ToUniversalTime()
+                SendAt = sendAt
             };
         }
     }
