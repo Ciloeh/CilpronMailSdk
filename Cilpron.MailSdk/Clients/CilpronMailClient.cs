@@ -1,81 +1,94 @@
 ﻿using System;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Cilpron.MailSdk.Exceptions;
 using Cilpron.MailSdk.Internal;
 using Cilpron.MailSdk.Models;
 using Polly;
-using Polly.Extensions.Http;
-using JsonSerializerOptions = Cilpron.MailSdk.Internal.JsonSerializerOptions;
-
+using Polly.Retry;
 
 namespace Cilpron.MailSdk.Clients
 {
     /// <summary>
-    /// Client for interacting with the Cilpron Mail API, with resilient HTTP handling using Polly.
+    /// Client for the Cilpron Mail API (Swift Grid), with resilient HTTP handling using Polly.
     /// </summary>
     public class CilpronMailClient : ICilpronMailClient
     {
+        public const string DefaultBaseUrl = "https://swiftgrid.cilbox.com/api/swiftgrid/";
+        private const string SendPath = "domains/send";
+
+        // Retry only when the request provably did not complete (network failure) or the server
+        // asked us to back off (429/503). Retrying other 5xx could deliver the same email twice.
+        private static readonly AsyncRetryPolicy<HttpResponseMessage> RetryPolicy =
+            Policy.Handle<HttpRequestException>()
+                .OrResult<HttpResponseMessage>(r =>
+                    r.StatusCode == (HttpStatusCode)429 ||
+                    r.StatusCode == HttpStatusCode.ServiceUnavailable)
+                .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+
         private readonly HttpClient _httpClient;
-        private const string BaseUrl = "https://mail.cilpron.com/v1/";
 
         /// <summary>
-        /// Initializes the client with an API key for Bearer authentication.
+        /// Initializes the client with an API key (sent as a Bearer token) against the default endpoint.
         /// </summary>
-        /// <param name="apiKey">The Cilpron API key.</param>
         public CilpronMailClient(string apiKey)
         {
             if (string.IsNullOrEmpty(apiKey))
                 throw new ArgumentNullException(nameof(apiKey));
 
-            var handler = new HttpClientHandler();
-            _httpClient = new HttpClient(handler)
-            {
-                BaseAddress = new Uri(BaseUrl)
-            };
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-            _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            _httpClient = new HttpClient { BaseAddress = new Uri(DefaultBaseUrl) };
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
         /// <summary>
-        /// Initializes the client with a custom HttpClient (e.g., for DI or testing).
+        /// Initializes the client with a pre-configured HttpClient (DI or testing).
         /// </summary>
-        /// <param name="httpClient">The pre-configured HttpClient.</param>
         public CilpronMailClient(HttpClient httpClient)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             if (_httpClient.BaseAddress == null)
-                _httpClient.BaseAddress = new Uri(BaseUrl);
+                _httpClient.BaseAddress = new Uri(DefaultBaseUrl);
         }
 
-        /// <summary>
-        /// Sends an email asynchronously.
-        /// </summary>
-        /// <param name="request">The mail request model.</param>
-        /// <returns>The send response.</returns>
-        public async Task<SendMailResponse> SendEmailAsync(MailRequest request)
+        /// <inheritdoc />
+        public async Task<SendMailResponse> SendEmailAsync(MailRequest request, CancellationToken cancellationToken = default)
         {
             RequestValidator.Validate(request);
 
-            var json = JsonSerializer.Serialize(request, JsonSerializerOptions.Default);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var payload = SwiftGridSendPayload.FromRequest(request);
+            var json = JsonSerializer.Serialize(payload, SwiftGridSendPayload.JsonOptions);
 
-            var policy = HttpPolicyExtensions
-                .HandleTransientHttpError()
-                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+            using var response = await RetryPolicy.ExecuteAsync(
+                ct => _httpClient.SendAsync(
+                    new HttpRequestMessage(HttpMethod.Post, SendPath)
+                    {
+                        Content = new StringContent(json, Encoding.UTF8, "application/json")
+                    }, ct),
+                cancellationToken).ConfigureAwait(false);
 
-            var response = await policy.ExecuteAsync(() => _httpClient.PostAsync("mail/send", content));
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new CilpronMailException($"Failed to send email: {response.StatusCode} - {errorContent}");
-            }
+                throw new CilpronMailException($"Failed to send email: {(int)response.StatusCode} {response.StatusCode} - {body}");
 
-            var responseJson = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<SendMailResponse>(responseJson, JsonSerializerOptions.Default);
+            if (string.IsNullOrWhiteSpace(body))
+                return new SendMailResponse();
+
+            try
+            {
+                return JsonSerializer.Deserialize<SendMailResponse>(body, SwiftGridSendPayload.JsonOptions)
+                       ?? new SendMailResponse();
+            }
+            catch (JsonException ex)
+            {
+                throw new CilpronMailException($"Email was accepted but the response could not be read: {ex.Message} - {body}");
+            }
         }
     }
 }

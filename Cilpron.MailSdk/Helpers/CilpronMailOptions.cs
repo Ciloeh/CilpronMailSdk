@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Cilpron.MailSdk.Clients;
 
 namespace Cilpron.MailSdk.Helpers
 {
@@ -11,10 +8,19 @@ namespace Cilpron.MailSdk.Helpers
     /// </summary>
     public class CilpronMailOptions
     {
+        /// <summary>
+        /// The API key, sent as a Bearer token. Leave empty if the endpoint does not require one.
+        /// </summary>
+        public string? ApiKey { get; set; }
 
         /// <summary>
-        /// The API key for authentication.
+        /// Base URL of the API. Defaults to the Swift Grid endpoint.
         /// </summary>
-        public string ApiKey { get; set; }
+        public string BaseUrl { get; set; } = CilpronMailClient.DefaultBaseUrl;
+
+        /// <summary>
+        /// HTTP timeout per attempt.
+        /// </summary>
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
     }
 }

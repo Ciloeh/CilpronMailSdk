@@ -1,10 +1,8 @@
-﻿using Cilpron.MailSdk.Clients;
+﻿using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Cilpron.MailSdk.Clients;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Cilpron.MailSdk.Helpers
 {
@@ -13,28 +11,26 @@ namespace Cilpron.MailSdk.Helpers
     /// </summary>
     public static class CilpronMailClientExtensions
     {
-        /// <summary>
-        /// Adds the CilpronMailClient to the service collection.
-        /// </summary>
-        /// <param name="services">The service collection.</param>
-        /// <param name="configure">Action to configure options.</param>
-        /// <returns>The updated service collection.</returns>
         public static IServiceCollection AddCilpronMailClient(this IServiceCollection services, Action<CilpronMailOptions> configure)
         {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
             var options = new CilpronMailOptions();
             configure?.Invoke(options);
 
-            var httpClient = new HttpClient
-            {
-                BaseAddress = new Uri("https://mail.cilpron.com/v1/")
-            };
-            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
+            var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? CilpronMailClient.DefaultBaseUrl : options.BaseUrl;
+            if (!baseUrl.EndsWith("/")) baseUrl += "/";
 
-            services.AddSingleton<ICilpronMailClient>(new CilpronMailClient(httpClient));
+            services.AddHttpClient<ICilpronMailClient, CilpronMailClient>(client =>
+            {
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = options.Timeout;
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                if (!string.IsNullOrEmpty(options.ApiKey))
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+            });
 
             return services;
         }
     }
-
-    
 }

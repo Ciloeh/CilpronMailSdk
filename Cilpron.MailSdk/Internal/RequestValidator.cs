@@ -1,11 +1,8 @@
-﻿using Cilpron.MailSdk.Exceptions;
-using Cilpron.MailSdk.Models;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net.Mail;
+using Cilpron.MailSdk.Exceptions;
+using Cilpron.MailSdk.Models;
 
 namespace Cilpron.MailSdk.Internal
 {
@@ -27,10 +24,10 @@ namespace Cilpron.MailSdk.Internal
             if (string.IsNullOrEmpty(request.Subject))
                 throw new ValidationException("Subject is required.");
 
-            if (!request.Personalizations.Any() || request.Personalizations.All(p => string.IsNullOrEmpty(p.ToEmail)))
+            if (request.Personalizations == null ||
+                !request.Personalizations.Any(p => !string.IsNullOrEmpty(p.ToEmail)))
                 throw new ValidationException("At least one 'To' recipient is required.");
 
-            // Validate emails in personalizations
             foreach (var p in request.Personalizations)
             {
                 if (!string.IsNullOrEmpty(p.ToEmail))
@@ -43,23 +40,27 @@ namespace Cilpron.MailSdk.Internal
                     ValidateEmail(p.BccEmail, "BccEmail in Personalization");
             }
 
-            // Additional validations (e.g., check for content presence if required)
             if (string.IsNullOrEmpty(request.PlainTextContent) && string.IsNullOrEmpty(request.HtmlContent))
                 throw new ValidationException("At least one of PlainTextContent or HtmlContent is required.");
+
+            if (request.Attachments != null && request.Attachments.Any())
+                throw new ValidationException("Attachments are not supported by the mail endpoint.");
         }
 
         private static void ValidateEmail(string email, string fieldName)
         {
+            bool valid;
             try
             {
-                var addr = new MailAddress(email);
-                if (addr.Address != email)
-                    throw new ValidationException($"Invalid email format for {fieldName}: {email}");
+                valid = new MailAddress(email).Address == email;
             }
-            catch
+            catch (FormatException)
             {
-                throw new ValidationException($"Invalid email format for {fieldName}: {email}");
+                valid = false;
             }
+
+            if (!valid)
+                throw new ValidationException($"Invalid email format for {fieldName}: {email}");
         }
     }
 }

@@ -1,9 +1,6 @@
-﻿using Cilpron.MailSdk.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Threading;
 using System.Threading.Tasks;
+using Cilpron.MailSdk.Models;
 
 namespace Cilpron.MailSdk.Clients
 {
@@ -13,10 +10,8 @@ namespace Cilpron.MailSdk.Clients
     public interface ICilpronMailClient
     {
         /// <summary>
-        /// Sends an email asynchronously.
+        /// Sends an email asynchronously (immediately, or at MailRequest.SendAt when set).
         /// </summary>
-        /// <param name="request">The mail request model.</param>
-        /// <returns>The send response.</returns>
-        Task<SendMailResponse> SendEmailAsync(MailRequest request);
+        Task<SendMailResponse> SendEmailAsync(MailRequest request, CancellationToken cancellationToken = default);
     }
 }
